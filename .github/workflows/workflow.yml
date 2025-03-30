@@ -1,4 +1,4 @@
-name: CI for On develop workflow AdoptMe-Frontend
+name: CI for Elysia Backend
 
 on:
   push:
@@ -7,6 +7,21 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U testuser"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
       - name: Checkout Code
@@ -19,6 +34,16 @@ jobs:
 
       - name: Install Dependencies
         run: bun install
+
+      - name: Set Up Environment Variables
+        run: |
+          echo "DATABASE_URL=postgres://testuser:testpassword@localhost:5432/testdb" >> $GITHUB_ENV
+
+      - name: Run Database Migrations
+        run: bunx prisma db push
+
+      - name: Run Tests
+        run: bun test
 
   build:
     needs: test
@@ -38,7 +63,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build Docker Image
-        run: docker build -t  ${{ secrets.DOCKER_USERNAME }}/adoptme-frontend:develop .
+        run: docker build -t  ${{ secrets.DOCKER_USERNAME }}/adoptme-backend:develop .
 
       - name: Push Docker Image to Docker Hub
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/adoptme-frontend:develop
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/adoptme-backend:develop
